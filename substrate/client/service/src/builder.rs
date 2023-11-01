@@ -495,17 +495,17 @@ where
 	let rpc = start_rpc_servers(&config, gen_rpc_module, rpc_id_provider)?;
 	let rpc_handlers = RpcHandlers(Arc::new(gen_rpc_module(sc_rpc::DenyUnsafe::No)?.into()));
 
-	// Spawn informant task
-	spawn_handle.spawn(
-		"informant",
-		None,
-		sc_informant::build(
-			client.clone(),
-			network,
-			sync_service.clone(),
-			config.informant_output_format,
-		),
-	);
+	// // Spawn informant task
+	// spawn_handle.spawn(
+	// 	"informant",
+	// 	None,
+	// 	sc_informant::build(
+	// 		client.clone(),
+	// 		network,
+	// 		sync_service.clone(),
+	// 		config.informant_output_format,
+	// 	),
+	// );
 
 	task_manager.keep_alive((config.base_path, rpc));
 
