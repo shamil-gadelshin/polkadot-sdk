@@ -3516,7 +3516,7 @@ pub(crate) mod tests {
 		//	\ - 1a - 2a - 3a
 		//	     \ - 2b
 
-		let backend = Backend::<Block>::new_test_with_tx_storage(BlocksPruning::Some(10), 10);
+		let backend = Backend::<Block>::new_test_with_tx_storage(BlocksPruning::Some(2), 10);
 
 		let make_block = |index, parent, val: u64| {
 			insert_block(&backend, index, parent, None, H256::random(), vec![val.into()], None)
@@ -3529,6 +3529,7 @@ pub(crate) mod tests {
 		let block_2a = make_block(2, block_1a, 0x2a);
 		let block_2b = make_block(2, block_1a, 0x2b);
 		let block_3a = make_block(3, block_2a, 0x3a);
+		let block_4a = make_block(4, block_3a, 0x4a);
 
 		// Make sure 1b is head
 		let mut op = backend.begin_operation().unwrap();
@@ -3539,19 +3540,21 @@ pub(crate) mod tests {
 		// Finalize 3a
 		let mut op = backend.begin_operation().unwrap();
 		backend.begin_state_operation(&mut op, block_0).unwrap();
-		op.mark_head(block_3a).unwrap();
+		op.mark_head(block_4a).unwrap();
 		op.mark_finalized(block_1a, None).unwrap();
 		op.mark_finalized(block_2a, None).unwrap();
 		op.mark_finalized(block_3a, None).unwrap();
+		op.mark_finalized(block_4a, None).unwrap();
 		backend.commit_operation(op).unwrap();
 
 		let bc = backend.blockchain();
 		assert_eq!(None, bc.body(block_1b).unwrap());
 		assert_eq!(None, bc.body(block_2b).unwrap());
-		assert_eq!(Some(vec![0x00.into()]), bc.body(block_0).unwrap());
-		assert_eq!(Some(vec![0x1a.into()]), bc.body(block_1a).unwrap());
-		assert_eq!(Some(vec![0x2a.into()]), bc.body(block_2a).unwrap());
+		assert_eq!(None, bc.body(block_0).unwrap());
+		assert_eq!(None, bc.body(block_1a).unwrap());
+		assert_eq!(None, bc.body(block_2a).unwrap());
 		assert_eq!(Some(vec![0x3a.into()]), bc.body(block_3a).unwrap());
+		assert_eq!(Some(vec![0x4a.into()]), bc.body(block_4a).unwrap());
 	}
 
 	#[test]
