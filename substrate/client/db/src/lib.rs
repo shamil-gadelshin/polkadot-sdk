@@ -790,6 +790,16 @@ impl<Block: BlockT> sc_client_api::blockchain::Backend<Block> for BlockchainDb<B
 				Err(sp_blockchain::Error::Backend(format!("Error decoding body list: {}", err))),
 		}
 	}
+
+	fn clear_block_gap(&self) {
+		println!("**** clear_block_gap");
+		self.update_block_gap(None);
+	}
+
+	fn update_block_gap(&self, start: NumberFor<Block>, end: NumberFor<Block>){
+		println!("**** update_block_gap: start: {:?} end:{:?}", start, end);
+		self.update_block_gap(Some((start, end)));
+	}
 }
 
 impl<Block: BlockT> HeaderMetadata<Block> for BlockchainDb<Block> {
@@ -1761,6 +1771,8 @@ impl<Block: BlockT> Backend<Block> {
 		for m in meta_updates {
 			self.blockchain.update_meta(m);
 		}
+
+		println!("*** Block gap: {block_gap:?}");
 		self.blockchain.update_block_gap(block_gap);
 
 		Ok(())

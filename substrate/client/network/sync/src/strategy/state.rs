@@ -25,7 +25,7 @@ use crate::{
 	LOG_TARGET,
 };
 use libp2p::PeerId;
-use log::{debug, error, trace};
+use log::{debug, error, info, trace};
 use sc_client_api::ProofProvider;
 use sc_consensus::{BlockImportError, BlockImportStatus, IncomingBlock};
 use sc_network_common::sync::message::BlockAnnounce;
@@ -215,6 +215,7 @@ impl<B: BlockT> StateStrategy<B> {
 					state: Some(state),
 				};
 				debug!(target: LOG_TARGET, "State download is complete. Import is queued");
+				info!(target: LOG_TARGET, "State download is complete. Import is queued"); // TODO
 				self.actions
 					.push(StateStrategyAction::ImportBlocks { origin, blocks: vec![block] });
 				Ok(())
@@ -344,6 +345,8 @@ impl<B: BlockT> StateStrategy<B> {
 			.into_iter()
 			.map(|(peer_id, request)| StateStrategyAction::SendStateRequest { peer_id, request });
 		self.actions.extend(state_request);
+
+		println!("Actions: {}", self.actions.len());
 
 		std::mem::take(&mut self.actions).into_iter()
 	}

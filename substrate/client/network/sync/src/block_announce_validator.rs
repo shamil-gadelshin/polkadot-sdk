@@ -124,13 +124,13 @@ impl<B: BlockT> BlockAnnounceValidator<B> {
 	) {
 		let header = &announce.header;
 		let number = *header.number();
-		debug!(
-			target: LOG_TARGET,
-			"Pre-validating received block announcement {:?} with number {:?} from {}",
-			hash,
-			number,
-			peer_id,
-		);
+		// debug!(
+		// 	target: LOG_TARGET,
+		// 	"Pre-validating received block announcement {:?} with number {:?} from {}",
+		// 	hash,
+		// 	number,
+		// 	peer_id,
+		// );
 
 		if number.is_zero() {
 			warn!(
@@ -177,13 +177,13 @@ impl<B: BlockT> BlockAnnounceValidator<B> {
 					Ok(Validation::Success { is_new_best }) => {
 						let is_new_best = is_new_best || is_best;
 
-						trace!(
-							target: LOG_TARGET,
-							"Block announcement validated successfully: from {}: {:?}. Local best: {}.",
-							peer_id,
-							announce.summary(),
-							is_new_best,
-						);
+						// trace!(
+						// 	target: LOG_TARGET,
+						// 	"Block announcement validated successfully: from {}: {:?}. Local best: {}.",
+						// 	peer_id,
+						// 	announce.summary(),
+						// 	is_new_best,
+						// );
 
 						BlockAnnounceValidationResult::Process { is_new_best, announce, peer_id }
 					},

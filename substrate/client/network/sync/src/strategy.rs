@@ -20,7 +20,7 @@
 //! and specific syncing algorithms.
 
 pub mod chain_sync;
-mod state;
+pub mod state;
 pub mod state_sync;
 pub mod warp;
 
@@ -197,6 +197,18 @@ where
 			SyncingStrategy::StateSyncStrategy(_) => {},
 			SyncingStrategy::ChainSyncStrategy(strategy) =>
 				strategy.set_sync_fork_request(peers, hash, number),
+		}
+	}
+
+	pub fn update_common_number_for_peers(
+		&mut self,
+		number: NumberFor<B>,
+	) {
+		match self {
+			SyncingStrategy::WarpSyncStrategy(_) => {},
+			SyncingStrategy::StateSyncStrategy(_) => {},
+			SyncingStrategy::ChainSyncStrategy(strategy) =>
+				strategy.update_common_number_for_peers(number),
 		}
 	}
 

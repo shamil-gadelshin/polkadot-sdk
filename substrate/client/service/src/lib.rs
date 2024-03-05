@@ -48,7 +48,7 @@ use sc_network_sync::SyncingService;
 use sc_utils::mpsc::TracingUnboundedReceiver;
 use sp_blockchain::HeaderMetadata;
 use sp_consensus::SyncOracle;
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor};
 
 pub use self::{
 	builder::{
@@ -88,6 +88,8 @@ pub use sc_transaction_pool::Options as TransactionPoolOptions;
 pub use sc_transaction_pool_api::{error::IntoPoolError, InPoolTransaction, TransactionPool};
 #[doc(hidden)]
 pub use std::{ops::Deref, result::Result, sync::Arc};
+use sp_runtime::generic::Block;
+use sp_runtime::Justifications;
 pub use task_manager::{SpawnTaskHandle, Task, TaskManager, TaskRegistry, DEFAULT_GROUP_NAME};
 
 const DEFAULT_PROTOCOL_ID: &str = "sup";
@@ -95,6 +97,20 @@ const DEFAULT_PROTOCOL_ID: &str = "sup";
 /// RPC handlers that can perform RPC queries.
 #[derive(Clone)]
 pub struct RpcHandlers(Arc<RpcModule<()>>);
+
+#[derive(Clone, Debug)]
+pub struct RawBlockData<Block: BlockT>{
+	pub hash: Block::Hash,
+	pub header: Block::Header,
+	pub block_body: Option<Vec<Block::Extrinsic>>,
+	pub justifications: Option<Justifications>
+}
+
+pub trait ClientExt<Block: BlockT>{
+	fn import_raw_block(&self, raw_block: RawBlockData<Block>);
+	fn clear_block_gap(&self);
+	fn update_block_gap(&self, start: NumberFor<Block>, end: NumberFor<Block>);
+}
 
 impl RpcHandlers {
 	/// Starts an RPC query.

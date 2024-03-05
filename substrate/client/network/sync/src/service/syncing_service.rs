@@ -36,6 +36,7 @@ use std::{
 
 /// Commands send to `SyncingEngine`
 pub enum ToServiceCommand<B: BlockT> {
+	NewBestBlockNumber(NumberFor<B>),
 	SetSyncForkRequest(Vec<PeerId>, B::Hash, NumberFor<B>),
 	RequestJustification(B::Hash, NumberFor<B>),
 	ClearJustificationRequests,
@@ -89,6 +90,15 @@ impl<B: BlockT> SyncingService<B> {
 		let _ = self.tx.unbounded_send(ToServiceCommand::NumActivePeers(tx));
 
 		rx.await
+	}
+
+	pub fn new_best_number(
+		&self,
+		number: NumberFor<B>,
+	) {
+		let _ = self
+			.tx
+			.unbounded_send(ToServiceCommand::NewBestBlockNumber(number));
 	}
 
 	/// Get best seen block.

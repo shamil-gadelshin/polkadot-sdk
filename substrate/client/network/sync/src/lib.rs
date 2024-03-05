@@ -39,6 +39,7 @@ pub mod service;
 pub mod state_request_handler;
 pub mod strategy;
 pub mod warp_request_handler;
+pub mod fast_sync_engine;
 
 /// Log target for this crate.
 const LOG_TARGET: &str = "sync";

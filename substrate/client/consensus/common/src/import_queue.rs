@@ -28,7 +28,7 @@
 //! queues to be instantiated simply.
 
 use async_lock::RwLock;
-use log::{debug, trace};
+use log::{debug, info, trace};
 use std::{
 	fmt,
 	future::Future,
@@ -295,6 +295,7 @@ where
 	Block: BlockT,
 	BI: BlockImport<Block, Error = ConsensusError>,
 {
+	println!("import_single_block");
 	match verify_single_block_metered(import_handle, block_origin, block, verifier, false, None)
 		.await?
 	{
@@ -375,6 +376,9 @@ where
 {
 	let peer = block.origin;
 
+	let number = block.header.clone().map(|h| h.number().clone());
+	info!("*** start verify_single_block_metered: {:?} {:?}", number.clone(), block.hash);
+
 	let (header, justifications) = match (block.header, block.justifications) {
 		(Some(header), justifications) => (header, justifications),
 		(None, _) => {
@@ -415,6 +419,8 @@ where
 			return Ok(SingleBlockVerificationOutcome::Imported(r))
 		},
 	}
+
+	println!("*** after check: {:?}", block.hash);
 
 	let started = Instant::now();
 
@@ -457,6 +463,8 @@ where
 	if let Some(metrics) = metrics {
 		metrics.report_verification(true, verification_time);
 	}
+
+	info!("*** finish verify_single_block_metered: {:?} {:?}", number.clone(), block.hash);
 
 	Ok(SingleBlockVerificationOutcome::Verified(SingleBlockImportParameters {
 		import_block,

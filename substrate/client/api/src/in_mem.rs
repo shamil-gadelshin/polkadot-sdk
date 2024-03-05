@@ -447,6 +447,18 @@ impl<Block: BlockT> blockchain::Backend<Block> for Blockchain<Block> {
 	) -> sp_blockchain::Result<Option<Vec<Vec<u8>>>> {
 		unimplemented!("Not supported by the in-mem backend.")
 	}
+
+	fn clear_block_gap(&self){
+		println!("**** Clear gap call from Blockchain ****");
+		println!("**** Clear gap call from Blockchain ****");
+		println!("**** Clear gap call from Blockchain ****");
+	}
+
+	fn update_block_gap(&self, start: NumberFor<Block>, end: NumberFor<Block>){
+		println!("**** Clear gap call from Blockchain ****");
+		println!("**** Clear gap call from Blockchain ****");
+		println!("**** Clear gap call from Blockchain ****");
+	}
 }
 
 impl<Block: BlockT> backend::AuxStore for Blockchain<Block> {

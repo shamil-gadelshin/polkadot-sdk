@@ -255,6 +255,10 @@ pub trait Backend<Block: BlockT>:
 	}
 
 	fn block_indexed_body(&self, hash: Block::Hash) -> Result<Option<Vec<Vec<u8>>>>;
+
+	fn clear_block_gap(&self);
+
+	fn update_block_gap(&self, start: NumberFor<Block>, end: NumberFor<Block>);
 }
 
 /// Blockchain info

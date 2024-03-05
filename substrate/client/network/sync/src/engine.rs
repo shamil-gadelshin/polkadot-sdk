@@ -102,7 +102,7 @@ const MAX_KNOWN_BLOCKS: usize = 1024; // ~32kb per peer + LruHashSet overhead
 /// If the block announces stream to peer has been inactive for 30 seconds meaning local node
 /// has not sent or received block announcements to/from the peer, report the node for inactivity,
 /// disconnect it and attempt to establish connection to some other peer.
-const INACTIVITY_EVICT_THRESHOLD: Duration = Duration::from_secs(30);
+const INACTIVITY_EVICT_THRESHOLD: Duration = Duration::from_secs(1000);
 
 /// When `SyncingEngine` is started, wait two minutes before actually staring to count peers as
 /// evicted.
@@ -114,7 +114,7 @@ const INACTIVITY_EVICT_THRESHOLD: Duration = Duration::from_secs(30);
 ///
 /// To prevent this from happening, define a threshold for how long `SyncingEngine` should wait
 /// before it starts evicting peers.
-const INITIAL_EVICTION_WAIT_PERIOD: Duration = Duration::from_secs(2 * 60);
+const INITIAL_EVICTION_WAIT_PERIOD: Duration = Duration::from_secs(2 * 600);
 
 /// Maximum allowed size for a block announce.
 const MAX_BLOCK_ANNOUNCE_SIZE: u64 = 1024 * 1024;
@@ -839,6 +839,9 @@ where
 			ToServiceCommand::SetSyncForkRequest(peers, hash, number) => {
 				self.strategy.set_sync_fork_request(peers, &hash, number);
 			},
+			ToServiceCommand::NewBestBlockNumber(number) => {
+				self.strategy.update_common_number_for_peers(number);
+			},
 			ToServiceCommand::EventStream(tx) => self.event_streams.push(tx),
 			ToServiceCommand::RequestJustification(hash, number) =>
 				self.strategy.request_justification(&hash, number),
@@ -1227,6 +1230,7 @@ where
 
 		match Self::encode_state_request(&request) {
 			Ok(data) => {
+				println!("Preparing state request: {}, peer_id={peer_id}", data.len());
 				self.network_service.start_request(
 					peer_id,
 					self.state_request_protocol_name.clone(),
@@ -1283,6 +1287,7 @@ where
 	}
 
 	fn decode_state_response(response: &[u8]) -> Result<OpaqueStateResponse, String> {
+		println!("decode_state_response: {}", response.len());
 		let response = StateResponse::decode(response)
 			.map_err(|error| format!("Failed to decode state response: {error}"))?;
 
