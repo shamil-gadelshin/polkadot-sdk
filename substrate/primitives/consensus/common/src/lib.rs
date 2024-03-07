@@ -69,6 +69,8 @@ pub enum BlockOrigin {
 	Own,
 	/// Block was imported from a file.
 	File,
+	/// Block was imported using fast sync.
+	FastSync,
 }
 
 /// Environment for a Consensus instance.

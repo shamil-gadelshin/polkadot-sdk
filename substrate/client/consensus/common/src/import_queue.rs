@@ -376,7 +376,7 @@ where
 {
 	let peer = block.origin;
 
-	let number = block.header.clone().map(|h| h.number().clone());
+	let number = block.header.clone().map(|h| *h.number());
 	info!("*** start verify_single_block_metered: {:?} {:?}", number.clone(), block.hash);
 
 	let (header, justifications) = match (block.header, block.justifications) {

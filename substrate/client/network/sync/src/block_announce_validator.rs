@@ -22,7 +22,7 @@
 use crate::{futures_stream::FuturesStream, LOG_TARGET};
 use futures::{stream::FusedStream, Future, FutureExt, Stream, StreamExt};
 use libp2p::PeerId;
-use log::{debug, error, trace, warn};
+use log::{debug, error, warn};
 use sc_network_common::sync::message::BlockAnnounce;
 use sp_consensus::block_validation::Validation;
 use sp_runtime::traits::{Block as BlockT, Header, Zero};

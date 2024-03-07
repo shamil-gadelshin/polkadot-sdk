@@ -19,21 +19,21 @@
 //! `SyncingEngine` is the actor responsible for syncing Substrate chain
 //! to tip and keep the blockchain up to date with network updates.
 
+mod syncing_service;
+
 use crate::{
-	block_request_handler::MAX_BLOCKS_IN_RESPONSE,
 	pending_responses::{PendingResponses, ResponseEvent},
 	schema::v1::{StateRequest, StateResponse},
 	service::{
 		self,
-		syncing_service::{SyncingService, ToServiceCommand},
 	},
 	strategy::{
-		SyncingConfig,
 		state::StateStrategy
 	},
 	types::{
 		BadPeer, ExtendedPeerInfo, OpaqueStateRequest, OpaqueStateResponse, PeerRequest, SyncEvent,
 	},
+	fast_sync_engine::syncing_service::{SyncingService, ToServiceCommand},
 	LOG_TARGET,
 };
 
@@ -45,17 +45,14 @@ use libp2p::{request_response::OutboundFailure, PeerId};
 use log::{debug, error, info, trace};
 use prost::Message;
 
-use sc_client_api::{BlockBackend, HeaderBackend, ProofProvider};
+use sc_client_api::{BlockBackend, ProofProvider};
 use sc_network::{
-	config::{
-		FullNetworkConfiguration,
-	},
 	request_responses::{IfDisconnected, RequestFailure},
 	types::ProtocolName,
 	utils::LruHashSet,
 };
 use sc_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
-use sp_blockchain::{Error as ClientError, HeaderMetadata};
+use sp_blockchain::{Error as ClientError};
 use sp_runtime::{Justifications, traits::{Block as BlockT,}};
 use std::{
 	collections::{HashMap},
@@ -91,17 +88,11 @@ mod rep {
 	pub const TIMEOUT: Rep = Rep::new(-(1 << 10), "Request timeout");
 }
 
-pub struct FastSyncingEngine<B: BlockT, Client, IQS> where
+pub struct FastSyncingEngine<B: BlockT, IQS> where
 	IQS: ImportQueueService<B> + ?Sized,
 {
 	/// Syncing strategy.
 	strategy: StateStrategy<B>,
-
-	// /// Syncing configuration for strategies.
-	// syncing_config: SyncingConfig,
-
-	/// Blockchain client.
-	client: Arc<Client>,
 
 	/// Number of peers we're connected to.
 	num_connected: Arc<AtomicUsize>,
@@ -139,20 +130,18 @@ pub struct FastSyncingEngine<B: BlockT, Client, IQS> where
 	last_block: Option<IncomingBlock<B>>,
 }
 
-impl<B: BlockT, Client, IQS> FastSyncingEngine<B, Client, IQS>
+impl<B: BlockT, IQS> FastSyncingEngine<B, IQS>
 where
 	B: BlockT,
-	Client: BlockBackend<B>
-		+ ProofProvider<B>
-		+ Send
-		+ Sync
-		+ 'static,
 	IQS: ImportQueueService<B> + ?Sized,
 {
-	pub fn new(
+	pub fn new<Client: BlockBackend<B>
+	+ ProofProvider<B>
+	+ Send
+	+ Sync
+	+ 'static>(
 		client: Arc<Client>,
 		import_queue: Box<IQS>,
-//		net_config: &FullNetworkConfiguration,
 		network_service: service::network::NetworkServiceHandle,
 		fork_id: Option<&str>,
 		target_header: B::Header,
@@ -168,28 +157,6 @@ where
 			.expect("Genesis block exists; qed");
 		let state_request_protocol_name = generate_protocol_name(genesis_hash, fork_id).into();
 
-		// let mode = net_config.network_config.sync_mode;
-		// let pause_sync = Arc::clone(&net_config.network_config.pause_sync);
-		// let max_parallel_downloads = net_config.network_config.max_parallel_downloads;
-		// let max_blocks_per_request =
-		// 	if net_config.network_config.max_blocks_per_request > MAX_BLOCKS_IN_RESPONSE as u32 {
-		// 		log::info!(
-		// 			target: LOG_TARGET,
-		// 			"clamping maximum blocks per request to {}",
-		// 			MAX_BLOCKS_IN_RESPONSE,
-		// 		);
-		// 		MAX_BLOCKS_IN_RESPONSE as u32
-		// 	} else {
-		// 		net_config.network_config.max_blocks_per_request
-		// 	};
-		// let syncing_config = SyncingConfig {
-		// 	mode,
-		// 	pause_sync,
-		// 	max_parallel_downloads,
-		// 	max_blocks_per_request,
-		// 	metrics_registry: Default::default(), // TODO
-		// };
-
 		// Initialize syncing strategy.
 		let strategy =
 			StateStrategy::new(client.clone(), target_header, target_body, target_justifications, skip_proof, initial_peers);
@@ -200,10 +167,8 @@ where
 
 		Ok((
 			Self {
-				client,
 				import_queue,
 				strategy,
-		//		syncing_config,
 				network_service,
 				peers: HashMap::new(),
 				num_connected: num_connected.clone(),
@@ -240,7 +205,7 @@ where
 					continue;
 				}
 				Ok(None) => {
-					info!("Import state finished.");
+					info!("State import finished.");
 					break;
 				}
 				Err(e) => {
@@ -254,7 +219,12 @@ where
 	}
 
 	fn process_strategy_actions(&mut self) -> Result<Option<()>, ClientError> {
-		for action in self.strategy.actions() {
+		let actions = self.strategy.actions().collect::<Vec<_>>();
+		if actions.is_empty(){
+			return Err(ClientError::Backend("Fast sync failed - no further actions.".into()))
+		}
+
+		for action in actions.into_iter() {
 			match action {
 				StateStrategyAction::SendStateRequest { peer_id, request } => {
 					println!("Sending state request: {peer_id}");
@@ -287,64 +257,10 @@ where
 
 	fn process_service_command(&mut self, command: ToServiceCommand<B>) {
 		match command {
-			ToServiceCommand::NewBestBlockNumber(_) => {
-				// TODO:
-				println!("Unexpected NewBestBlockNumber");
-			},
-			ToServiceCommand::SetSyncForkRequest(..) => {
-				// TODO:
-				println!("Unexpected SetSyncForkRequest");
-			},
-			ToServiceCommand::EventStream(tx) => self.event_streams.push(tx),
-			ToServiceCommand::RequestJustification(..) =>{
-				// TODO:
-				println!("Unexpected RequestJustification");
-			},
-			ToServiceCommand::ClearJustificationRequests =>{
-				// TODO:
-				println!("Unexpected ClearJustificationRequests");
-			},
-			ToServiceCommand::BlocksProcessed(..) => {
-				// TODO:
-				println!("Unexpected BlocksProcessed");
-			},
-			ToServiceCommand::JustificationImported(..) => {
-				// TODO:
-				println!("Unexpected JustificationImported");
-			},
-			ToServiceCommand::AnnounceBlock(..) => {
-				// TODO:
-				println!("Unexpected AnnounceBlock");
-			},
-			ToServiceCommand::NewBestBlockImported(..) => {
-				// TODO:
-				println!("Unexpected NewBestBlockImported");
-			},
 			ToServiceCommand::Status(tx) => {
 				let mut status = self.strategy.status();
 				status.num_connected_peers = self.peers.len() as u32;
 				let _ = tx.send(status);
-			},
-			ToServiceCommand::NumActivePeers(tx) => {
-				let _ = tx.send(self.num_active_peers());
-			},
-			ToServiceCommand::SyncState(tx) => {
-				let _ = tx.send(self.strategy.status());
-			},
-			ToServiceCommand::BestSeenBlock(tx) => {
-				let _ = tx.send(self.strategy.status().best_seen_block);
-			},
-			ToServiceCommand::NumSyncPeers(tx) => {
-				let _ = tx.send(self.strategy.status().num_peers);
-			},
-			ToServiceCommand::NumQueuedBlocks(tx) => {
-				let _ = tx.send(self.strategy.status().queued_blocks);
-			},
-			ToServiceCommand::NumDownloadedBlocks(tx) => {
-				let _ = tx.send(0); // TODO:
-			},
-			ToServiceCommand::NumSyncRequests(tx) => {
-				let _ = tx.send(0); // TODO:
 			},
 			ToServiceCommand::PeersInfo(tx) => {
 				let peers_info = self
@@ -354,20 +270,13 @@ where
 					.collect();
 				let _ = tx.send(peers_info);
 			},
-			ToServiceCommand::OnBlockFinalized(..) => {
-				// TODO:
-				println!("Unexpected NewBestBlockImported");
+			ToServiceCommand::Start(tx) => {
+				let _ = tx.send(());
 			}
 		}
 	}
 
 	fn send_state_request(&mut self, peer_id: PeerId, request: OpaqueStateRequest) {
-		// if !self.peers.contains_key(&peer_id) {
-		// 	trace!(target: LOG_TARGET, "Cannot send state request to unknown peer {peer_id}");
-		// 	debug_assert!(false);
-		// 	return
-		// }
-
 		let (tx, rx) = oneshot::channel();
 
 		self.pending_responses.insert(peer_id, PeerRequest::State, rx.boxed());

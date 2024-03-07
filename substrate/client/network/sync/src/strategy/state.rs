@@ -58,6 +58,7 @@ pub enum StateStrategyAction<B: BlockT> {
 	Finished,
 }
 
+#[derive(Debug)]
 enum PeerState {
 	Available,
 	DownloadingState,
@@ -69,6 +70,7 @@ impl PeerState {
 	}
 }
 
+#[derive(Debug)]
 struct Peer<B: BlockT> {
 	best_number: NumberFor<B>,
 	state: PeerState,

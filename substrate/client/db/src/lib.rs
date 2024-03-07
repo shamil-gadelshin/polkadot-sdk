@@ -1772,7 +1772,6 @@ impl<Block: BlockT> Backend<Block> {
 			self.blockchain.update_meta(m);
 		}
 
-		println!("*** Block gap: {block_gap:?}");
 		self.blockchain.update_block_gap(block_gap);
 
 		Ok(())

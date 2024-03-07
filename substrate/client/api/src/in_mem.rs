@@ -454,7 +454,7 @@ impl<Block: BlockT> blockchain::Backend<Block> for Blockchain<Block> {
 		println!("**** Clear gap call from Blockchain ****");
 	}
 
-	fn update_block_gap(&self, start: NumberFor<Block>, end: NumberFor<Block>){
+	fn update_block_gap(&self, _: NumberFor<Block>, _: NumberFor<Block>){
 		println!("**** Clear gap call from Blockchain ****");
 		println!("**** Clear gap call from Blockchain ****");
 		println!("**** Clear gap call from Blockchain ****");

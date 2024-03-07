@@ -132,7 +132,7 @@ impl<B, E, Block, RA> ClientExt<Block> for Client<B, E, Block, RA>
 		println!("**** ClientExt: import_raw_block ****: {:?}", raw_block);
 
 		// Non-exhaustive
-		let mut import_block = BlockImportParams::new(BlockOrigin::NetworkInitialSync, raw_block.header);
+		let mut import_block = BlockImportParams::new(BlockOrigin::FastSync, raw_block.header);
 		import_block.justifications = raw_block.justifications;
 		import_block.body = raw_block.block_body;
 		import_block.state_action = StateAction::Skip;
@@ -664,7 +664,7 @@ where
 		let make_notifications = match origin {
 			BlockOrigin::NetworkBroadcast | BlockOrigin::Own | BlockOrigin::ConsensusBroadcast =>
 				true,
-			BlockOrigin::Genesis | BlockOrigin::NetworkInitialSync | BlockOrigin::File => false,
+			BlockOrigin::Genesis | BlockOrigin::NetworkInitialSync | BlockOrigin::File | BlockOrigin::FastSync => false,
 		};
 
 		let storage_changes = match storage_changes {
