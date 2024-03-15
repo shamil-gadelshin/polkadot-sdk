@@ -84,6 +84,8 @@ use std::{
 	path::PathBuf,
 	sync::Arc,
 };
+use std::hash::Hash;
+use codec::Encode;
 
 #[cfg(feature = "test-helpers")]
 use {
@@ -119,6 +121,32 @@ where
 	_phantom: PhantomData<RA>,
 }
 
+pub type BlockWeight = u128;
+
+//TODO: make function from the caller
+/// Write the cumulative chain-weight of a block ot aux storage.
+pub(crate) fn write_block_weight<H: Encode, F, R>(
+	block_hash: H,
+	block_weight: BlockWeight,
+	write_aux: F,
+) -> R
+	where
+		F: FnOnce(&[(Vec<u8>, &[u8])]) -> R,
+{
+	let key = block_weight_key(block_hash);
+	block_weight.using_encoded(|s| write_aux(&[(key, s)]))
+}
+
+/// The aux storage key used to store the block weight of the given block hash.
+pub fn block_weight_key<H: Encode>(block_hash: H) -> Vec<u8> {
+	(b"block_weight", block_hash).encode()
+}
+
+// write_block_weight(hash, 0, |values| {
+// 	import_block.auxiliary
+// 		.extend(values.iter().map(|(k, v)| (k.to_vec(), Some(v.to_vec()))))
+// });
+
 impl<B, E, Block, RA> ClientExt<Block> for Client<B, E, Block, RA>
 	where
 		B: backend::Backend<Block>,
@@ -129,7 +157,8 @@ impl<B, E, Block, RA> ClientExt<Block> for Client<B, E, Block, RA>
 		RA: Sync + Send,
 {
 	fn import_raw_block(&self, raw_block: RawBlockData<Block>) {
-		println!("**** ClientExt: import_raw_block ****: {:?}", raw_block);
+		let hash = raw_block.hash.clone();
+		println!("**** ClientExt: import_raw_block ****: {:?}  - {:?}", raw_block.header.number(), hash);
 
 		// Non-exhaustive
 		let mut import_block = BlockImportParams::new(BlockOrigin::FastSync, raw_block.header);
@@ -141,6 +170,13 @@ impl<B, E, Block, RA> ClientExt<Block> for Client<B, E, Block, RA>
 		import_block.import_existing = false;
 
 		// TODO:
+		// Reset block weight.
+		write_block_weight(hash, 0, |values| {
+			import_block.auxiliary
+				.extend(values.iter().map(|(k, v)| (k.to_vec(), Some(v.to_vec()))))
+		});
+
+		// TODO:
 		let _ = self.lock_import_and_run(|operation| {
 			self.apply_block(operation, import_block, None)
 		})
@@ -148,6 +184,7 @@ impl<B, E, Block, RA> ClientExt<Block> for Client<B, E, Block, RA>
 			error!("import_raw_block error: {}", e);
 			ConsensusError::ClientImport(e.to_string())
 		});
+
 	}
 
 	fn clear_block_gap(&self){

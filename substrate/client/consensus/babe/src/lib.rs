@@ -1628,6 +1628,7 @@ where
 				});
 			}
 
+			println!("write_block_weight:{:?}", hash);
 			aux_schema::write_block_weight(hash, total_weight, |values| {
 				block
 					.auxiliary

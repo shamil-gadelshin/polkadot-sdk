@@ -184,7 +184,7 @@ where
 		))
 	}
 
-	pub async fn run(mut self) -> Option<IncomingBlock<B>> {
+	pub async fn run(mut self) -> Result<Option<IncomingBlock<B>>, ClientError> {
 		self.syncing_started = Some(Instant::now());
 
 		loop {
@@ -209,13 +209,13 @@ where
 					break;
 				}
 				Err(e) => {
-					error!("Terminating `SyncingEngine` due to fatal error: {e:?}");
-					return None
+					error!("Terminating `FastSyncingEngine` due to fatal error: {e:?}");
+					return Err(e)
 				}
 			}
 		}
 
-		return self.last_block.take();
+		return Ok(self.last_block.take());
 	}
 
 	fn process_strategy_actions(&mut self) -> Result<Option<()>, ClientError> {
